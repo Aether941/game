@@ -1,0 +1,2 @@
+源文件导出名为 sBombNextIdle_0.png
+为方便编程改为 sBombIdleNext_0.png
