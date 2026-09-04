@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Öoo Map Viewer</title>
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <style>
+    :root{
+      --cols: 33;
+      --rows: 34;
+      --gap: 0px;
+      --map-aspect: calc(2642 / 2040);
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      color:#fff;
+    }
+    body{
+      background-image: url('ooo_bg.png');
+      background-repeat: repeat;
+      animation: moveBackground 5s linear infinite;
+    }
+    @keyframes moveBackground{
+      from { background-position: 0 0; }
+      to { background-position: 180px -116px; }
+    }
+    .wrap{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:12px;
+      box-sizing:border-box;
+      margin-top:40px;
+    }
+    .grid{
+      width: 90vw;
+      aspect-ratio: var(--map-aspect);
+      display:grid;
+      grid-template-columns: repeat(var(--cols), 1fr);
+      grid-template-rows: repeat(var(--rows), 1fr);
+      gap: var(--gap);
+      position:relative;
+      background-image: url('ooo_map.png');
+      background-size: 100% 100%;
+      background-position: center center;
+      background-repeat: no-repeat;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.6);
+      border-radius: 6px;
+    }
+    .cell{
+      background:transparent;
+    }
+    .cell:hover{
+      outline: 2px solid #fff;
+      outline-offset: -2px;
+      cursor: pointer;
+    }
+    .tooltip{
+      position:fixed;
+      pointer-events:none;
+      transform:translate(-50%, calc(-100% - 8px));
+      background: rgba(0,0,0,0.75);
+      color:#fff;
+      padding:6px 8px;
+      border-radius:4px;
+      font-weight:600;
+      font-family: monospace;
+      font-size:14px;
+      white-space:nowrap;
+      z-index:9999;
+    }
+    .tooltip.hidden{display:none}
+    .overlay{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background: rgba(0,0,0,0.7);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:10000;
+    }
+    .overlay img{
+      max-width:90%;
+      max-height:90%;
+      border: 3px solid #2a2077;
+      box-shadow:0 0 20px rgba(0,0,0,0.8);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="grid" class="grid" aria-label="map grid"></div>
+  </div>
+  <div id="tooltip" class="tooltip hidden">[00,00]</div>
+  <script>
+    (function(){
+      const cols = 33;
+      const rows = 34;
+      const grid = document.getElementById('grid');
+      const tooltip = document.getElementById('tooltip');
+      for(let y=0; y<rows; y++){
+        for(let x=0; x<cols; x++){
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.x = String(x).padStart(2,'0');
+          cell.dataset.y = String(y).padStart(2,'0');
+          cell.tabIndex = 0;
+          cell.addEventListener('mouseenter', () => showTooltip(cell));
+          cell.addEventListener('mouseleave', hideTooltip);
+          cell.addEventListener('mousemove', () => positionTooltipOver(cell));
+          cell.addEventListener('click', () => openRoom(cell));
+          grid.appendChild(cell);
+        }
+      }
+      function showTooltip(cell){
+        tooltip.classList.remove('hidden');
+        tooltip.textContent = `[${cell.dataset.x},${cell.dataset.y}]`;
+        positionTooltipOver(cell);
+      }
+      function hideTooltip(){
+        tooltip.classList.add('hidden');
+      }
+      function positionTooltipOver(cell){
+        const rect = cell.getBoundingClientRect();
+        tooltip.style.left = (rect.left + rect.width/2) + 'px';
+        tooltip.style.top = rect.top + 'px';
+      }
+      function openRoom(cell){
+        const imgPath = `./rooms/${cell.dataset.x}_${cell.dataset.y}.jpg`;
+        const img = new Image();
+        img.onload = () => {
+          const overlay = document.createElement('div');
+          overlay.className = 'overlay';
+          const imgEl = document.createElement('img');
+          imgEl.src = imgPath;
+          overlay.appendChild(imgEl);
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click', () => overlay.remove());
+        };
+        img.onerror = () => {};
+        img.src = imgPath;
+      }
+    })();
+  </script>
+</body>
+</html>
