@@ -13,7 +13,7 @@ const bombs = [
   'Hako',
 ];
 
-const BOMB_SPRITES_URL = '/game/assets/ooo/sprites/sBomb/';
+const S_BOMB_DIR = '/game/assets/ooo/sprites/sBomb/';
 
 /* App */
 const App = document.querySelector('#app');
@@ -22,24 +22,36 @@ for (const bomb of bombs) {
 
   App.insertAdjacentHTML(
     'beforeend',
-    `<div class="bomb">
-      <div class="big">
+    `<div class="grid">
+      <div class="grid-item" style="--area: title">
         <span>${bomb}</span>
-        <div class="anim">
-          <img src="${BOMB_SPRITES_URL}/${filename}_0.png" style="--i: 0">
-          <img src="${BOMB_SPRITES_URL}/${filename}_1.png" style="--i: 1">
-          <img src="${BOMB_SPRITES_URL}/${filename}_2.png" style="--i: 2">
-          <img src="${BOMB_SPRITES_URL}/${filename}_3.png" style="--i: 3">
-        </div>
-        <img src="${BOMB_SPRITES_URL}/${filename}Next_0.png">
       </div>
 
-      <div class="small">
-        <img src="${BOMB_SPRITES_URL}/${filename}_0.png">
-        <img src="${BOMB_SPRITES_URL}/${filename}_1.png">
-        <img src="${BOMB_SPRITES_URL}/${filename}_2.png">
-        <img src="${BOMB_SPRITES_URL}/${filename}_3.png">
-        <img src="${BOMB_SPRITES_URL}/${filename}Next_0.png">
+      <div class="grid-item" style="--area: anime">
+        <img class="large" src="${S_BOMB_DIR}/${filename}_0.png" style="--i: 0">
+        <img class="large" src="${S_BOMB_DIR}/${filename}_1.png" style="--i: 1">
+        <img class="large" src="${S_BOMB_DIR}/${filename}_2.png" style="--i: 2">
+        <img class="large" src="${S_BOMB_DIR}/${filename}_3.png" style="--i: 3">
+      </div>
+
+      <div class="grid-item" style="--area: still">
+        <img class="large" src="${S_BOMB_DIR}/${filename}Next_0.png">
+      </div>
+
+      <div class="grid-item" style="--area: bomb0">
+        <img class="small" src="${S_BOMB_DIR}/${filename}_0.png">
+      </div>
+      <div class="grid-item" style="--area: bomb1">
+        <img class="small" src="${S_BOMB_DIR}/${filename}_1.png">
+      </div>
+      <div class="grid-item" style="--area: bomb2">
+        <img class="small" src="${S_BOMB_DIR}/${filename}_2.png">
+      </div>
+      <div class="grid-item" style="--area: bomb3">
+        <img class="small" src="${S_BOMB_DIR}/${filename}_3.png">
+      </div>
+      <div class="grid-item" style="--area: bombN">
+        <img class="small" src="${S_BOMB_DIR}/${filename}Next_0.png">
       </div>
     </div>`,
   );
