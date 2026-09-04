@@ -129,7 +129,11 @@
         tooltip.style.top = rect.top + 'px';
       }
       function openRoom(cell){
-        const imgPath = `./rooms/${cell.dataset.x}_${cell.dataset.y}.jpg`;
+        /* custom code start */
+        const roomDir = '/game/assets/rooms'
+        const imgPath = `${roomDir}/${cell.dataset.x}_${cell.dataset.y}.jpg`;
+        /* custom code end*/
+        // const imgPath = `./rooms/${cell.dataset.x}_${cell.dataset.y}.jpg`;
         const img = new Image();
         img.onload = () => {
           const overlay = document.createElement('div');
