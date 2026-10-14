@@ -2,6 +2,13 @@
 // invert-date-text.shader  --  时间文本按"文字后面那一小块背景"反色
 // 适用: OBS Studio 32.x + obs-shaderfilter 2.6.0 (Exeldro)
 //
+// ⚠ 本文件刻意保持【单文件、零 #include】。
+//    插件 load_shader_from_file 解析 include 时用 strrchr(file_name, '/') 找目录,
+//    而递归调用传进去的是 os_get_abs_path_ptr() 的结果(Windows 上是反斜杠),
+//    于是找不到 '/' → 长度算成垃圾值 → bmemdup 崩溃。
+//    结论: 被 include 的文件里绝不能再有 #include (只能一层), 否则 OBS 直接崩。
+//    要分模式就多复制几份这个单文件, 别用嵌套 include。
+//
 // 思路
 //   滤镜加在「时间文本」那个浏览器源上。着色器只拿到文本源的贴图:
 //   白色文字 + 透明背景。我们把「背景源」当第二个贴图参数传进来, 在文字
@@ -18,6 +25,10 @@
 //   → 最省事: 把浏览器源宽高直接设成画布大小(2560x1440), 场景里不缩放、
 //     位置 (0,0), 文字位置交给 HTML/CSS。这样 缩放=(1,1)、偏移=(0,0),
 //     永远自动对齐, 换场景/挪位置都不会错。
+//   → 背景优先绑定【一个只放背景的场景】: 场景源永远按画布尺寸渲染, 且已应用
+//     内部所有 item 的变换, 所以它的贴图和画布严格 1:1, 偏移恒为 0;
+//     绑定【源】时, 它在场景里必须正好铺满画布, 否则取色会和画面对不上。
+//     ⚠ 这个背景场景里绝对不能有文本源本身, 否则自我递归。
 //
 //   ★ 关键二: 取哪块背景 (采样方式)
 //   - 逐像素: 每个文字像素取它正背后的那一点背景 → 零参数, 笔画会随背景变色
@@ -32,8 +43,8 @@
 //        下拉框 = 选一个 OBS 源或场景 (可跟随游戏画面实时变化)
 //        右侧路径框 = 或者直接选一张背景图片文件
 //      ⚠ 千万不要选"包含这个时间源的那个场景", 会自我递归。
-//      ⚠ 前提: 背景源在场景里要正好铺满画布。
-//   3. 对齐(见关键一), 然后挑采样方式。
+//      ⚠ 绑定的是源时: 它在场景里必须正好 1:1 铺满画布。
+//   3. 对齐(见关键一), 然后挑采样方式与反色方式。
 //
 // 备注
 //   * 本 shader 依赖插件自带的 alpha 处理(插件默认把输入做 alpha divide),
@@ -44,7 +55,7 @@
 uniform string usage_info<
     string label = "说明";
     string widget_type = "info";
-> = "1) [背景]绑定背景源或图片(它要在场景里铺满画布)。2) 文字源若就是画布大小, [5.对齐]保持 1/1/0/0; 否则填 缩放=文字源显示尺寸/画布, 偏移=文字源位置/画布。3) [2.采样]默认取区域平均色(整段同色), 用[采样区]圈出文字后面那块背景; 想零参数就用'逐像素'。4) 区域平均建议配[按亮度取黑/白]更易读。";
+> = "1) [背景]绑定背景源或图片(推荐绑一个只放背景的场景, 它按画布尺寸渲染, uv 永远 1:1)。2) 文字源若就是画布大小, [5.对齐]保持 1/1/0/0; 否则填 缩放=文字源显示尺寸/画布, 偏移=文字源位置/画布。3) [2.采样]默认区域平均(整段同色), 用[采样区]圈出文字后面那块背景; 想零参数就选'逐像素'。4) 标了(仅[X] 用)的参数只在你选了 X 那个方式时才起作用。";
 
 // ---------------------------------------------------------------------------
 // 1. 背景贴图: 下拉选源/场景, 或右边选图片文件
@@ -70,7 +81,7 @@ uniform int sample_mode<
 // 采样区: 相对"文字框"的百分比。文字框=画布时, 百分比就是画布的百分比。
 // 默认 50/50/100/100 = 整个文字框。
 uniform float patch_center_x<
-    string label = "采样区中心 X (%)";
+    string label = "采样区中心 X (%) (仅[区域平均] 用)";
     string group = "2. 采样";
     string widget_type = "slider";
     float minimum = -50.0;
@@ -79,7 +90,7 @@ uniform float patch_center_x<
 > = 50.0;
 
 uniform float patch_center_y<
-    string label = "采样区中心 Y (%)";
+    string label = "采样区中心 Y (%) (仅[区域平均] 用)";
     string group = "2. 采样";
     string widget_type = "slider";
     float minimum = -50.0;
@@ -88,7 +99,7 @@ uniform float patch_center_y<
 > = 50.0;
 
 uniform float patch_width<
-    string label = "采样区宽 (%)";
+    string label = "采样区宽 (%) (仅[区域平均] 用)";
     string group = "2. 采样";
     string widget_type = "slider";
     float minimum = 1.0;
@@ -97,7 +108,7 @@ uniform float patch_width<
 > = 100.0;
 
 uniform float patch_height<
-    string label = "采样区高 (%)";
+    string label = "采样区高 (%) (仅[区域平均] 用)";
     string group = "2. 采样";
     string widget_type = "slider";
     float minimum = 1.0;
@@ -106,7 +117,7 @@ uniform float patch_height<
 > = 100.0;
 
 uniform int average_samples<
-    string label = "平均采样网格 (N x N)";
+    string label = "平均采样网格 N×N (仅[区域平均] 用)";
     string group = "2. 采样";
     string widget_type = "slider";
     int minimum = 2;
@@ -125,7 +136,18 @@ uniform int invert_mode<
     string option_0_label = "反相 (1 - 背景色)";
     int option_1_value = 1;
     string option_1_label = "按亮度取黑/白 (更易读)";
+    int option_2_value = 2;
+    string option_2_label = "偏移反相/异或 (I ^ n)";
 > = 0;
+
+uniform int xor_value<
+    string label = "异或值 n (仅[偏移反相/异或] 用)";
+    string group = "3. 反色";
+    string widget_type = "slider";
+    int minimum = 0;
+    int maximum = 255;
+    int step = 1;
+> = 128;
 
 uniform float invert_amount<
     string label = "反色强度";
@@ -137,7 +159,7 @@ uniform float invert_amount<
 > = 1.0;
 
 uniform float threshold<
-    string label = "亮度阈值";
+    string label = "亮度阈值 (仅[按亮度取黑/白] 用)";
     string group = "3. 反色";
     string widget_type = "slider";
     float minimum = 0.0;
@@ -244,6 +266,14 @@ float4 mainImage(VertData v_in) : TARGET
         // 按亮度二选一: 背景亮 → 黑字, 背景暗 → 白字
         float luma = dot(bg_rgb, float3(0.2126, 0.7152, 0.0722));
         inverted = (luma > threshold) ? float3(0.0, 0.0, 0.0) : float3(1.0, 1.0, 1.0);
+    } else if (invert_mode == 2) {
+        // 偏移反相/异或: I' = I ^ n, R/G/B 各通道独立做 (n = [异或值])
+        // n = 128 时就是 (I + 128) mod 256 (翻转最高位):
+        //   0→128, 64→192, 128→0, 255→127
+        // 注意: 异或 与 "加 n 再取模 256" 只在 n 是 2 的幂时相同。
+        uint3 c = (uint3)(saturate(bg_rgb) * 255.0 + 0.5);
+        c ^= (uint)clamp(xor_value, 0, 255);
+        inverted = (float3)c * (1.0 / 255.0);
     } else {
         // 直接反相(等于和背景做 difference 混合)
         inverted = 1.0 - bg_rgb;

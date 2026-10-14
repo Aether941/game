@@ -3,31 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <style>
-      /* =====================================================================
-         画布尺寸版
-         OBS 里把这个浏览器源的「宽度/高度」设成画布大小 (2560 x 1440),
-         场景里: 位置 (0,0)、缩放 1.0、边界「无」。
-         这样滤镜贴图的 uv 就和画布 1:1, 反色 shader 的对齐参数保持 1/1/0/0。
-         文字摆在哪, 只改下面这几个变量。
-         ===================================================================== */
       :root {
-        /* 字号 */
-        --font-size: 256px;
+        --left: auto; /* 文字行盒左上角 X (auto = 不按左边定位) */
+        --top: auto; /* 文字行盒左上角 Y */
+        --right: auto; /* 也可以改成按右边/下边定位 */
+        --bottom: 0;
+        /* 文本属性 */
+        --font-size: 28px;
         --color: #ffffff;
-        /* 透明度 */
         --opacity: 1; /* 0~1 */
-        /* 锚点: flex-start = 左/上, center = 中, flex-end = 右/下 */
-        --anchor-x: flex-start;
-        --anchor-y: flex-end;
-        /* 常用位置 (把上面 --anchor-x / --anchor-y / 边距 换成其中一组):
-             左上: --anchor-x: flex-start; --anchor-y: flex-start;
-             正上: --anchor-x: center;     --anchor-y: flex-start;
-             右上: --anchor-x: flex-end;   --anchor-y: flex-start;
-             左下: --anchor-x: flex-start; --anchor-y: flex-end;   ← 当前
-             居中: --anchor-x: center;     --anchor-y: center;
-             右下: --anchor-x: flex-end;   --anchor-y: flex-end;
-        */
-      }
+        /* 纯视觉微调, 不影响上面填的坐标 */
+        {{/*  --nudge-x: calc(var(--font-size) * 0.125);  */}}
+        {{/*  --nudge-y: calc(var(--font-size) * 0.125);  */}}
+    }
 
       html,
       body {
@@ -40,18 +28,16 @@
         background: transparent;
       }
 
-      body {
-        display: flex;
-        justify-content: var(--anchor-x);
-        align-items: var(--anchor-y);
-        box-sizing: border-box;
-      }
-
       #clock {
+        position: absolute;
+        left: var(--left);
+        top: var(--top);
+        right: var(--right);
+        bottom: var(--bottom);
+        transform: translate(var(--nudge-x), var(--nudge-y));
         font-family: "Roboto Condensed";
         font-weight: 900;
         font-size: var(--font-size);
-        line-height: 1;
         color: var(--color);
         opacity: var(--opacity);
         white-space: nowrap;
@@ -60,13 +46,74 @@
       *::-webkit-scrollbar {
         display: none;
       }
+
+      /* ---- 只给调试用的覆盖层, DEBUG = false 时完全不显示 ---- */
+      #dbg-patch,
+      #dbg-info {
+        display: none;
+        position: absolute;
+        box-sizing: border-box;
+      }
+
+      #dbg-patch {
+        border: 2px solid #00e5ff;
+        background: rgba(0, 229, 255, 0.15);
+      }
+
+      #dbg-info {
+        left: 0;
+        top: 0;
+        font:
+          22px Consolas,
+          monospace;
+        line-height: 1.35;
+        color: #00e5ff;
+        background: rgba(0, 0, 0, 0.65);
+        padding: 6px 10px;
+        white-space: pre;
+      }
     </style>
   </head>
   <body>
-    <span id="clock"></span>
+    <div id="clock"></div>
+
+    <!-- 调试覆盖层 -->
+    <div id="dbg-patch"></div>
+    <div id="dbg-info"></div>
 
     <script>
+      // 调位置/调滤镜采样区时改成 true: 画布上会显示文字框精确坐标和采样区百分比。
+      // ★ 直播/录制前记得改回 false。
+      const DEBUG = false;
+
+      // 和滤镜 [2.采样] 里的采样区保持一致, DEBUG 时会画出这块"取色范围"预览
+      const PATCH = {cx: 47.5, cy: 91, w: 95, h: 18};
+
       const clock = document.getElementById("clock");
+      const dbgPatch = document.getElementById("dbg-patch");
+      const dbgInfo = document.getElementById("dbg-info");
+      const fmt = (v) => Math.round(v * 10) / 10;
+
+      function drawDebug() {
+        const W = innerWidth;
+        const H = innerHeight;
+        const r = clock.getBoundingClientRect();
+
+        // 把 [2.采样] 的采样区(相对文字框的百分比)换算成画布坐标画出来
+        dbgPatch.style.left = ((PATCH.cx - PATCH.w / 2) / 100) * W + "px";
+        dbgPatch.style.top = ((PATCH.cy - PATCH.h / 2) / 100) * H + "px";
+        dbgPatch.style.width = (PATCH.w / 100) * W + "px";
+        dbgPatch.style.height = (PATCH.h / 100) * H + "px";
+
+        dbgInfo.textContent =
+          `画布 ${W} x ${H}\n` +
+          `文字框     x=${Math.round(r.left)} y=${Math.round(r.top)}` +
+          ` w=${Math.round(r.width)} h=${Math.round(r.height)}\n` +
+          `采样区建议 中心X=${fmt(((r.left + r.width / 2) / W) * 100)}` +
+          ` 中心Y=${fmt(((r.top + r.height / 2) / H) * 100)}` +
+          ` 宽=${fmt((r.width / W) * 100)} 高=${fmt((r.height / H) * 100)}\n` +
+          `青色框 = 当前 PATCH 常数 = 滤镜里实际取色的范围`;
+      }
 
       function render() {
         const text = new Date().toLocaleString("zh-CN", {
@@ -80,9 +127,16 @@
         });
         // 只在内容变化时写入, 免得每秒都触发一次重排
         if (clock.textContent !== text) clock.textContent = text;
+        if (DEBUG) drawDebug();
       }
 
-      render(); // 立刻显示, 不用等第一秒z
+      if (DEBUG) {
+        clock.style.outline = "2px solid #ffea00"; // 黄框 = 文字行盒(实际定位的依据)
+        dbgPatch.style.display = "block";
+        dbgInfo.style.display = "block";
+      }
+
+      render(); // 立刻显示, 不用等第一秒
       setInterval(render, 200);
     </script>
   </body>
