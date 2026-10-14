@@ -225,6 +225,14 @@ float4 mainImage(VertData v_in) : TARGET
     // 文字贴图: 白色文字, 文字外 alpha = 0
     float4 text = image.Sample(textureSampler, v_in.uv);
 
+    // 提前退出: 文字源是整画布大小, 绝大多数像素完全透明(没有字)。
+    // 这些像素不需要任何背景采样, 直接输出透明。
+    // 逐像素模式每跳过 1 个像素省 1 次采样; 区域平均模式省 N*N 次(默认 64 次),
+    // 所以这一句对"区域平均"的收益是逐像素的 64 倍。
+    // 抗锯齿边缘 (0 < alpha < 1) 不受影响, 照旧走完整流程。
+    if (text.a <= 0.0)
+        return float4(0.0, 0.0, 0.0, 0.0);
+
     // 文字框在背景贴图里对应的矩形
     float2 box_origin = float2(bg_offset_x, bg_offset_y) * 0.01;
     float2 box_span   = float2(bg_scale_x, bg_scale_y);
