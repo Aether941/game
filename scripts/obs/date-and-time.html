@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      html,
+      body,
+      #clock {
+        margin: 0;
+        padding: 0;
+      }
+
+      #clock {
+        font-family: "Roboto Condensed";
+        font-weight: 900;
+        font-size: 64px;
+        color: white;
+        opacity: 100%;
+        word-wrap: none;
+      }
+
+      *::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <span id="clock"></span>
+
+    <script>
+      setInterval(() => {
+        document.getElementById("clock").textContent =
+          new Date().toLocaleString("zh-CN", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          });
+      }, 1000);
+    </script>
+  </body>
+</html>
